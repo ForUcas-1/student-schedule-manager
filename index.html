@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="GB2312">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生日程管理系统</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="auth-container" id="authContainer">
+        <div class="auth-box">
+            <h2 id="authTitle">登录</h2>
+            <form id="authForm">
+                <div class="form-group">
+                    <label for="authEmail">邮箱</label>
+                    <input type="email" id="authEmail" required placeholder="请输入邮箱">
+                </div>
+                <div class="form-group">
+                    <label for="authPassword">密码</label>
+                    <input type="password" id="authPassword" required placeholder="请输入密码（至少6位）">
+                </div>
+                <div class="form-group" id="confirmPasswordGroup" style="display: none;">
+                    <label for="authConfirmPassword">确认密码</label>
+                    <input type="password" id="authConfirmPassword" placeholder="请再次输入密码">
+                </div>
+                <button type="submit" class="btn-primary btn-full" id="authSubmitBtn">登录</button>
+            </form>
+            <div class="auth-switch">
+                <span id="authSwitchText">还没有账号？</span>
+                <button type="button" class="btn-link" id="authSwitchBtn">注册</button>
+            </div>
+            <div class="auth-error" id="authError" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div class="container" id="mainContainer" style="display: none;">
+        <header>
+            <h1>学生日程管理系统</h1>
+            <div class="header-right">
+                <div class="week-nav">
+                    <button id="prevWeek">上一周</button>
+                    <span id="currentWeek">第 1 周</span>
+                    <button id="nextWeek">下一周</button>
+                </div>
+                <button class="btn-secondary" id="logoutBtn">退出登录</button>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="schedule">本周日程</button>
+            <button class="tab-btn" data-tab="courses">固定课程</button>
+            <button class="tab-btn" data-tab="todos">待办事项</button>
+        </nav>
+
+        <main>
+            <section id="schedule" class="tab-content active">
+                <div class="schedule-header">
+                    <h2>本周日程安排</h2>
+                    <div class="legend">
+                        <span class="legend-item"><span class="dot fixed"></span>固定课程</span>
+                        <span class="legend-item"><span class="dot modified"></span>临时修改</span>
+                        <span class="legend-item"><span class="dot todo"></span>待办事项</span>
+                        <span class="legend-item"><span class="dot conflict"></span>冲突</span>
+                    </div>
+                </div>
+                <div class="week-view" id="weekView">
+                    <div class="time-column">
+                        <div class="time-header">时间</div>
+                        <div class="time-slot">08:00-09:35</div>
+                        <div class="time-slot">09:55-11:30</div>
+                        <div class="time-slot">13:30-15:05</div>
+                        <div class="time-slot">15:25-17:00</div>
+                        <div class="time-slot">18:30-20:05</div>
+                    </div>
+                    <div class="day-column" data-day="1">
+                        <div class="day-header">周一</div>
+                    </div>
+                    <div class="day-column" data-day="2">
+                        <div class="day-header">周二</div>
+                    </div>
+                    <div class="day-column" data-day="3">
+                        <div class="day-header">周三</div>
+                    </div>
+                    <div class="day-column" data-day="4">
+                        <div class="day-header">周四</div>
+                    </div>
+                    <div class="day-column" data-day="5">
+                        <div class="day-header">周五</div>
+                    </div>
+                    <div class="day-column" data-day="6">
+                        <div class="day-header">周六</div>
+                    </div>
+                    <div class="day-column" data-day="7">
+                        <div class="day-header">周日</div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="courses" class="tab-content">
+                <div class="section-header">
+                    <h2>固定课程管理</h2>
+                    <button class="btn-primary" id="addCourseBtn">添加课程</button>
+                </div>
+                <div class="course-list" id="courseList"></div>
+            </section>
+
+            <section id="todos" class="tab-content">
+                <div class="section-header">
+                    <h2>待办事项管理</h2>
+                    <button class="btn-primary" id="addTodoBtn">添加待办</button>
+                </div>
+                <div class="todo-list" id="todoList"></div>
+            </section>
+        </main>
+    </div>
+
+    <div class="modal" id="courseModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="courseModalTitle">添加课程</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <form id="courseForm">
+                <input type="hidden" id="courseId">
+                <div class="form-group">
+                    <label for="courseName">课程名称 *</label>
+                    <input type="text" id="courseName" required>
+                </div>
+                <div class="form-group">
+                    <label for="courseDay">上课日期 *</label>
+                    <select id="courseDay" required>
+                        <option value="1">周一</option>
+                        <option value="2">周二</option>
+                        <option value="3">周三</option>
+                        <option value="4">周四</option>
+                        <option value="5">周五</option>
+                        <option value="6">周六</option>
+                        <option value="7">周日</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="courseTime">时间段 *</label>
+                    <select id="courseTime" required>
+                        <option value="1">第1-2节 (08:00-09:35)</option>
+                        <option value="2">第3-4节 (09:55-11:30)</option>
+                        <option value="3">第5-6节 (13:30-15:05)</option>
+                        <option value="4">第7-8节 (15:25-17:00)</option>
+                        <option value="5">第9-10节 (18:30-20:05)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="courseLocation">上课地点</label>
+                    <input type="text" id="courseLocation">
+                </div>
+                <div class="form-group">
+                    <label for="courseWeeks">生效周次（留空表示全学期）</label>
+                    <input type="text" id="courseWeeks" placeholder="例如: 1-16 或 1,3,5,7">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary cancel-btn">取消</button>
+                    <button type="submit" class="btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="modifyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>临时修改课程</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <form id="modifyForm">
+                <input type="hidden" id="modifyCourseId">
+                <input type="hidden" id="modifyWeek">
+                <div class="form-group">
+                    <label>原课程信息</label>
+                    <div id="originalCourseInfo" class="info-box"></div>
+                </div>
+                <div class="form-group">
+                    <label for="modifyDay">新上课日期</label>
+                    <select id="modifyDay">
+                        <option value="">不修改</option>
+                        <option value="1">周一</option>
+                        <option value="2">周二</option>
+                        <option value="3">周三</option>
+                        <option value="4">周四</option>
+                        <option value="5">周五</option>
+                        <option value="6">周六</option>
+                        <option value="7">周日</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="modifyTime">新时间段</label>
+                    <select id="modifyTime">
+                        <option value="">不修改</option>
+                        <option value="1">第1-2节 (08:00-09:35)</option>
+                        <option value="2">第3-4节 (09:55-11:30)</option>
+                        <option value="3">第5-6节 (13:30-15:05)</option>
+                        <option value="4">第7-8节 (15:25-17:00)</option>
+                        <option value="5">第9-10节 (18:30-20:05)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="modifyLocation">新上课地点</label>
+                    <input type="text" id="modifyLocation" placeholder="不修改请留空">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary cancel-btn">取消</button>
+                    <button type="submit" class="btn-primary">保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="todoModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="todoModalTitle">添加待办事项</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <form id="todoForm">
+                <input type="hidden" id="todoId">
+                <div class="form-group">
+                    <label for="todoName">事项名称 *</label>
+                    <input type="text" id="todoName" required>
+                </div>
+                <div class="form-group">
+                    <label for="todoDate">日期 *</label>
+                    <input type="date" id="todoDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="todoTime">时间段</label>
+                    <select id="todoTime">
+                        <option value="">全天</option>
+                        <option value="1">第1-2节 (08:00-09:35)</option>
+                        <option value="2">第3-4节 (09:55-11:30)</option>
+                        <option value="3">第5-6节 (13:30-15:05)</option>
+                        <option value="4">第7-8节 (15:25-17:00)</option>
+                        <option value="5">第9-10节 (18:30-20:05)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="todoLocation">地点</label>
+                    <input type="text" id="todoLocation">
+                </div>
+                <div class="form-group">
+                    <label for="todoNote">备注</label>
+                    <textarea id="todoNote" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="todoAlarm">
+                        设置闹钟提醒
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary cancel-btn">取消</button>
+                    <button type="submit" class="btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>详情</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div id="detailContent"></div>
+            <div class="form-actions" id="detailActions"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
