@@ -123,8 +123,8 @@
                     <div class="settings-group">
                         <h3>每天上课节数</h3>
                         <div class="form-group">
-                            <label for="slotsPerDay">节数（1-12节）</label>
-                            <input type="number" id="slotsPerDay" min="1" max="12" value="5">
+                            <label for="slotsPerDay">节数（1-15节）</label>
+                            <input type="number" id="slotsPerDay" min="1" max="15" value="14">
                         </div>
                     </div>
                     <div class="settings-group">
@@ -257,15 +257,12 @@
                     <input type="date" id="todoDate" required>
                 </div>
                 <div class="form-group">
-                    <label for="todoTime">时间段</label>
-                    <select id="todoTime">
-                        <option value="">全天</option>
-                        <option value="1">第1-2节 (08:00-09:35)</option>
-                        <option value="2">第3-4节 (09:55-11:30)</option>
-                        <option value="3">第5-6节 (13:30-15:05)</option>
-                        <option value="4">第7-8节 (15:25-17:00)</option>
-                        <option value="5">第9-10节 (18:30-20:05)</option>
-                    </select>
+                    <label for="todoTimeStart">开始时间</label>
+                    <input type="time" id="todoTimeStart">
+                </div>
+                <div class="form-group">
+                    <label for="todoTimeEnd">结束时间</label>
+                    <input type="time" id="todoTimeEnd">
                 </div>
                 <div class="form-group">
                     <label for="todoLocation">地点</label>

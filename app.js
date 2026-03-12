@@ -5,11 +5,20 @@ const { createClient } = window.supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const DEFAULT_TIME_SLOTS = [
-    { start: '08:00', end: '09:35' },
-    { start: '09:55', end: '11:30' },
-    { start: '13:30', end: '15:05' },
-    { start: '15:25', end: '17:00' },
-    { start: '18:30', end: '20:05' }
+    { start: '08:00', end: '08:45' },
+    { start: '08:50', end: '09:35' },
+    { start: '09:50', end: '10:35' },
+    { start: '10:40', end: '11:25' },
+    { start: '11:30', end: '12:15' },
+    { start: '13:00', end: '13:45' },
+    { start: '13:50', end: '14:35' },
+    { start: '14:45', end: '15:30' },
+    { start: '15:40', end: '16:25' },
+    { start: '16:35', end: '17:20' },
+    { start: '17:25', end: '18:10' },
+    { start: '18:30', end: '19:15' },
+    { start: '19:20', end: '20:05' },
+    { start: '20:10', end: '20:55' },
 ];
 
 class ScheduleManager {
@@ -273,7 +282,8 @@ class ScheduleManager {
                 id: t.id,
                 name: t.name,
                 date: t.date,
-                time: t.time,
+                startTime: t.start_time,
+                endTime: t.end_time,
                 location: t.location,
                 note: t.note,
                 alarm: t.alarm
@@ -558,7 +568,7 @@ class ScheduleManager {
         
         this.todos.forEach(todo => {
             if (todo.date === dateStr) {
-                if (!todo.time || todo.time === time) {
+                if (this.todoOverlapsSlot(todo, time)) {
                     items.push({
                         type: 'todo-item',
                         id: todo.id,
@@ -575,6 +585,28 @@ class ScheduleManager {
         });
         
         return items;
+    }
+
+    todoOverlapsSlot(todo, slotIndex) {
+        if (!todo.startTime || !todo.endTime) {
+            return true;
+        }
+        
+        const slot = this.timeSlots[slotIndex - 1];
+        if (!slot) return false;
+        
+        const todoStart = this.timeToMinutes(todo.startTime);
+        const todoEnd = this.timeToMinutes(todo.endTime);
+        const slotStart = this.timeToMinutes(slot.start);
+        const slotEnd = this.timeToMinutes(slot.end);
+        
+        return todoStart < slotEnd && todoEnd > slotStart;
+    }
+
+    timeToMinutes(timeStr) {
+        if (!timeStr) return 0;
+        const [hours, mins] = timeStr.split(':').map(Number);
+        return hours * 60 + mins;
     }
 
     renderCourseList() {
@@ -631,7 +663,7 @@ class ScheduleManager {
                     </div>
                     <div class="todo-details">
                         <span>? ${todo.date}</span>
-                        ${todo.time ? `<span>? ${this.getTimeSlot(todo.time)}</span>` : ''}
+                        ${todo.startTime && todo.endTime ? `<span>? ${todo.startTime}-${todo.endTime}</span>` : ''}
                         ${todo.location ? `<span>? ${todo.location}</span>` : ''}
                     </div>
                     ${todo.note ? `<div style="margin-top: 8px; color: #64748b; font-size: 14px;">? ${todo.note}</div>` : ''}
@@ -838,8 +870,6 @@ class ScheduleManager {
         form.reset();
         document.getElementById('todoId').value = '';
         
-        this.updateTimeSelects();
-        
         if (todoId) {
             const todo = this.todos.find(t => t.id === todoId);
             if (todo) {
@@ -847,7 +877,8 @@ class ScheduleManager {
                 document.getElementById('todoId').value = todo.id;
                 document.getElementById('todoName').value = todo.name;
                 document.getElementById('todoDate').value = todo.date;
-                document.getElementById('todoTime').value = todo.time || '';
+                document.getElementById('todoTimeStart').value = todo.startTime || '';
+                document.getElementById('todoTimeEnd').value = todo.endTime || '';
                 document.getElementById('todoLocation').value = todo.location || '';
                 document.getElementById('todoNote').value = todo.note || '';
                 document.getElementById('todoAlarm').checked = todo.alarm;
@@ -979,7 +1010,8 @@ class ScheduleManager {
         const id = document.getElementById('todoId').value;
         const name = document.getElementById('todoName').value.trim();
         const date = document.getElementById('todoDate').value;
-        const time = document.getElementById('todoTime').value;
+        const startTime = document.getElementById('todoTimeStart').value;
+        const endTime = document.getElementById('todoTimeEnd').value;
         const location = document.getElementById('todoLocation').value.trim();
         const note = document.getElementById('todoNote').value.trim();
         const alarm = document.getElementById('todoAlarm').checked;
@@ -988,7 +1020,8 @@ class ScheduleManager {
             user_id: this.user.id,
             name,
             date,
-            time: time || null,
+            start_time: startTime || null,
+            end_time: endTime || null,
             location: location || null,
             note: note || null,
             alarm
@@ -998,14 +1031,22 @@ class ScheduleManager {
         if (id) {
             const result = await supabaseClient
                 .from('todos')
-                .update({ name, date, time: time || null, location, note, alarm })
+                .update({ 
+                    name, 
+                    date, 
+                    start_time: startTime || null, 
+                    end_time: endTime || null, 
+                    location, 
+                    note, 
+                    alarm 
+                })
                 .eq('id', id);
             error = result.error;
             
             if (!error) {
                 const index = this.todos.findIndex(t => t.id === id);
                 if (index >= 0) {
-                    this.todos[index] = { id, name, date, time, location, note, alarm };
+                    this.todos[index] = { id, name, date, startTime, endTime, location, note, alarm };
                 }
             }
         } else {
@@ -1019,7 +1060,7 @@ class ScheduleManager {
             if (!error && result.data) {
                 this.todos.push({
                     id: result.data.id,
-                    name, date, time, location, note, alarm
+                    name, date, startTime, endTime, location, note, alarm
                 });
             }
         }
@@ -1118,7 +1159,7 @@ class ScheduleManager {
                     <strong>类型:</strong> 待办事项<br>
                     <strong>名称:</strong> ${item.name}<br>
                     <strong>日期:</strong> ${item.todo.date}<br>
-                    ${item.todo.time ? `<strong>时间:</strong> ${this.getTimeSlot(item.todo.time)}<br>` : ''}
+                    ${item.todo.startTime && item.todo.endTime ? `<strong>时间:</strong> ${item.todo.startTime}-${item.todo.endTime}<br>` : ''}
                     <strong>地点:</strong> ${item.location || '未设置'}<br>
                     ${item.todo.note ? `<strong>备注:</strong> ${item.todo.note}<br>` : ''}
                     <strong>闹钟:</strong> ${item.todo.alarm ? '已设置' : '未设置'}
