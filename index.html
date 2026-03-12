@@ -51,6 +51,7 @@
             <button class="tab-btn active" data-tab="schedule">本周日程</button>
             <button class="tab-btn" data-tab="courses">固定课程</button>
             <button class="tab-btn" data-tab="todos">待办事项</button>
+            <button class="tab-btn" data-tab="settings">时间设置</button>
         </nav>
 
         <main>
@@ -111,6 +112,31 @@
                     <button class="btn-primary" id="addTodoBtn">添加待办</button>
                 </div>
                 <div class="todo-list" id="todoList"></div>
+            </section>
+
+            <section id="settings" class="tab-content">
+                <div class="section-header">
+                    <h2>课程时间设置</h2>
+                    <button class="btn-primary" id="saveSettingsBtn">保存设置</button>
+                </div>
+                <div class="settings-container">
+                    <div class="settings-group">
+                        <h3>每天上课节数</h3>
+                        <div class="form-group">
+                            <label for="slotsPerDay">节数（1-12节）</label>
+                            <input type="number" id="slotsPerDay" min="1" max="12" value="5">
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <h3>每节课时间</h3>
+                        <div id="timeSlotsContainer" class="time-slots-container">
+                        </div>
+                        <button type="button" class="btn-secondary" id="addTimeSlotBtn">+ 添加时间段</button>
+                    </div>
+                    <div class="settings-info">
+                        <p>提示：修改时间设置后，现有的课程和待办事项将按新的时间段显示。</p>
+                    </div>
+                </div>
             </section>
         </main>
     </div>

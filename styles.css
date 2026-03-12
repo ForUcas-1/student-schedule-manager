@@ -764,3 +764,94 @@ form {
         transform: rotate(360deg);
     }
 }
+
+.settings-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.settings-group {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid #e2e8f0;
+}
+
+.settings-group h3 {
+    font-size: 18px;
+    color: #1e293b;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.time-slots-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.time-slot-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.time-slot-row .slot-number {
+    font-weight: 600;
+    color: #5a67d8;
+    min-width: 80px;
+}
+
+.time-slot-row input[type="time"] {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.time-slot-row input[type="time"]:focus {
+    outline: none;
+    border-color: #5a67d8;
+    box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.1);
+}
+
+.time-slot-row .separator {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.time-slot-row .delete-slot-btn {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-left: auto;
+    transition: all 0.2s;
+}
+
+.time-slot-row .delete-slot-btn:hover {
+    background: #fee2e2;
+}
+
+.settings-info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+#addTimeSlotBtn {
+    margin-top: 12px;
+}

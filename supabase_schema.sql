@@ -46,6 +46,17 @@ CREATE TABLE IF NOT EXISTS semester_settings (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 
+-- 时间段设置表
+CREATE TABLE IF NOT EXISTS time_slots (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    slot_index INTEGER NOT NULL CHECK (slot_index >= 0 AND slot_index < 12),
+    start_time VARCHAR(5) NOT NULL,
+    end_time VARCHAR(5) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+    UNIQUE(user_id, slot_index)
+);
+
 -- 创建索引
 CREATE INDEX IF NOT EXISTS idx_courses_user_id ON courses(user_id);
 CREATE INDEX IF NOT EXISTS idx_courses_day_time ON courses(day, time);
@@ -54,12 +65,14 @@ CREATE INDEX IF NOT EXISTS idx_modifications_course_week ON course_modifications
 CREATE INDEX IF NOT EXISTS idx_todos_user_id ON todos(user_id);
 CREATE INDEX IF NOT EXISTS idx_todos_date ON todos(date);
 CREATE INDEX IF NOT EXISTS idx_semester_user_id ON semester_settings(user_id);
+CREATE INDEX IF NOT EXISTS idx_time_slots_user_id ON time_slots(user_id);
 
 -- 启用 RLS (Row Level Security)
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE course_modifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE semester_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE time_slots ENABLE ROW LEVEL SECURITY;
 
 -- RLS 策略：用户只能访问自己的数据
 CREATE POLICY "Users can view their own courses" ON courses
@@ -106,6 +119,18 @@ CREATE POLICY "Users can insert their own semester settings" ON semester_setting
 
 CREATE POLICY "Users can update their own semester settings" ON semester_settings
     FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view their own time slots" ON time_slots
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own time slots" ON time_slots
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own time slots" ON time_slots
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own time slots" ON time_slots
+    FOR DELETE USING (auth.uid() = user_id);
 
 -- 更新时间触发器函数
 CREATE OR REPLACE FUNCTION update_updated_at_column()

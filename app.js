@@ -4,6 +4,14 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = window.supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+const DEFAULT_TIME_SLOTS = [
+    { start: '08:00', end: '09:35' },
+    { start: '09:55', end: '11:30' },
+    { start: '13:30', end: '15:05' },
+    { start: '15:25', end: '17:00' },
+    { start: '18:30', end: '20:05' }
+];
+
 class ScheduleManager {
     constructor() {
         this.user = null;
@@ -13,6 +21,7 @@ class ScheduleManager {
         this.currentWeek = 1;
         this.semesterStart = null;
         this.isSignUp = false;
+        this.timeSlots = [...DEFAULT_TIME_SLOTS];
         
         this.init();
     }
@@ -177,8 +186,10 @@ class ScheduleManager {
         this.showApp();
         this.bindEvents();
         await this.loadSemesterStart();
+        await this.loadTimeSlots();
         this.currentWeek = this.getCurrentWeek();
         await this.loadAllData();
+        this.renderTimeSlotsSettings();
         this.renderWeekView();
         this.renderCourseList();
         this.renderTodoList();
@@ -203,6 +214,22 @@ class ScheduleManager {
                     user_id: this.user.id,
                     semester_start: this.semesterStart.toISOString().split('T')[0]
                 });
+        }
+    }
+
+    async loadTimeSlots() {
+        const { data, error } = await supabaseClient
+            .from('time_slots')
+            .select('*')
+            .eq('user_id', this.user.id)
+            .order('slot_index', { ascending: true });
+
+        if (data && data.length > 0) {
+            this.timeSlots = data.map(s => ({
+                id: s.id,
+                start: s.start_time,
+                end: s.end_time
+            }));
         }
     }
 
@@ -331,14 +358,9 @@ class ScheduleManager {
     }
 
     getTimeSlot(time) {
-        const slots = {
-            1: '第1-2节 (08:00-09:35)',
-            2: '第3-4节 (09:55-11:30)',
-            3: '第5-6节 (13:30-15:05)',
-            4: '第7-8节 (15:25-17:00)',
-            5: '第9-10节 (18:30-20:05)'
-        };
-        return slots[time] || '';
+        if (!time || time < 1 || time > this.timeSlots.length) return '';
+        const slot = this.timeSlots[time - 1];
+        return `第${time}节 (${slot.start}-${slot.end})`;
     }
 
     bindEvents() {
@@ -394,6 +416,21 @@ class ScheduleManager {
                 if (e.target === modal) this.closeAllModals();
             });
         });
+
+        document.getElementById('slotsPerDay').addEventListener('change', (e) => {
+            const count = parseInt(e.target.value);
+            if (count > 0 && count <= 12) {
+                this.adjustTimeSlots(count);
+            }
+        });
+
+        document.getElementById('addTimeSlotBtn').addEventListener('click', () => {
+            this.addTimeSlot();
+        });
+
+        document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+            this.saveTimeSlots();
+        });
     }
 
     switchTab(tabId) {
@@ -421,7 +458,7 @@ class ScheduleManager {
             let existingSlots = column.querySelectorAll('.slot');
             existingSlots.forEach(slot => slot.remove());
             
-            for (let time = 1; time <= 5; time++) {
+            for (let time = 1; time <= this.timeSlots.length; time++) {
                 const slot = document.createElement('div');
                 slot.className = 'slot';
                 slot.dataset.time = time;
@@ -429,7 +466,20 @@ class ScheduleManager {
             }
         }
         
+        this.renderTimeColumn();
         this.renderWeekSchedule();
+    }
+
+    renderTimeColumn() {
+        const timeColumn = document.querySelector('.time-column');
+        timeColumn.innerHTML = '<div class="time-header">时间</div>';
+        
+        this.timeSlots.forEach((slot, index) => {
+            const timeSlot = document.createElement('div');
+            timeSlot.className = 'time-slot';
+            timeSlot.innerHTML = `${slot.start}<br>${slot.end}`;
+            timeColumn.appendChild(timeSlot);
+        });
     }
 
     renderWeekSchedule() {
@@ -594,6 +644,133 @@ class ScheduleManager {
         `).join('');
     }
 
+    renderTimeSlotsSettings() {
+        const container = document.getElementById('timeSlotsContainer');
+        const slotsPerDayInput = document.getElementById('slotsPerDay');
+        
+        slotsPerDayInput.value = this.timeSlots.length;
+        container.innerHTML = '';
+        
+        this.timeSlots.forEach((slot, index) => {
+            const row = document.createElement('div');
+            row.className = 'time-slot-row';
+            row.innerHTML = `
+                <span class="slot-number">第${index + 1}节</span>
+                <input type="time" value="${slot.start}" data-index="${index}" data-field="start">
+                <span class="separator">-</span>
+                <input type="time" value="${slot.end}" data-index="${index}" data-field="end">
+                <button type="button" class="delete-slot-btn" data-index="${index}">删除</button>
+            `;
+            container.appendChild(row);
+        });
+
+        container.querySelectorAll('input[type="time"]').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const index = parseInt(e.target.dataset.index);
+                const field = e.target.dataset.field;
+                this.timeSlots[index][field] = e.target.value;
+            });
+        });
+
+        container.querySelectorAll('.delete-slot-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = parseInt(e.target.dataset.index);
+                if (this.timeSlots.length > 1) {
+                    this.timeSlots.splice(index, 1);
+                    this.renderTimeSlotsSettings();
+                } else {
+                    alert('至少需要保留一个时间段');
+                }
+            });
+        });
+    }
+
+    adjustTimeSlots(count) {
+        while (this.timeSlots.length < count) {
+            const lastSlot = this.timeSlots[this.timeSlots.length - 1];
+            const newStart = this.addMinutes(lastSlot.end, 20);
+            const newEnd = this.addMinutes(newStart, 95);
+            this.timeSlots.push({ start: newStart, end: newEnd });
+        }
+        while (this.timeSlots.length > count) {
+            this.timeSlots.pop();
+        }
+        this.renderTimeSlotsSettings();
+    }
+
+    addTimeSlot() {
+        if (this.timeSlots.length >= 12) {
+            alert('最多支持12个时间段');
+            return;
+        }
+        const lastSlot = this.timeSlots[this.timeSlots.length - 1];
+        const newStart = this.addMinutes(lastSlot.end, 20);
+        const newEnd = this.addMinutes(newStart, 95);
+        this.timeSlots.push({ start: newStart, end: newEnd });
+        this.renderTimeSlotsSettings();
+        document.getElementById('slotsPerDay').value = this.timeSlots.length;
+    }
+
+    addMinutes(timeStr, minutes) {
+        const [hours, mins] = timeStr.split(':').map(Number);
+        let totalMins = hours * 60 + mins + minutes;
+        const newHours = Math.floor(totalMins / 60);
+        const newMins = totalMins % 60;
+        return `${String(newHours).padStart(2, '0')}:${String(newMins).padStart(2, '0')}`;
+    }
+
+    async saveTimeSlots() {
+        await supabaseClient
+            .from('time_slots')
+            .delete()
+            .eq('user_id', this.user.id);
+
+        const slotsData = this.timeSlots.map((slot, index) => ({
+            user_id: this.user.id,
+            slot_index: index,
+            start_time: slot.start,
+            end_time: slot.end
+        }));
+
+        const { error } = await supabaseClient
+            .from('time_slots')
+            .insert(slotsData);
+
+        if (error) {
+            alert('保存失败：' + error.message);
+            return;
+        }
+
+        alert('时间设置已保存！');
+        this.updateTimeSelects();
+        this.renderWeekView();
+    }
+
+    updateTimeSelects() {
+        const timeSelects = ['courseTime', 'modifyTime', 'todoTime'];
+        
+        timeSelects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            
+            const currentValue = select.value;
+            const isTodoSelect = selectId === 'todoTime';
+            
+            select.innerHTML = isTodoSelect ? '<option value="">全天</option>' : '';
+            
+            this.timeSlots.forEach((slot, index) => {
+                const option = document.createElement('option');
+                option.value = index + 1;
+                option.textContent = this.getTimeSlot(index + 1);
+                select.appendChild(option);
+            });
+            
+            if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
+                select.value = currentValue;
+            }
+        });
+    }
+
     openCourseModal(courseId = null) {
         const modal = document.getElementById('courseModal');
         const title = document.getElementById('courseModalTitle');
@@ -601,6 +778,8 @@ class ScheduleManager {
         
         form.reset();
         document.getElementById('courseId').value = '';
+        
+        this.updateTimeSelects();
         
         if (courseId) {
             const course = this.courses.find(c => c.id === courseId);
@@ -637,6 +816,8 @@ class ScheduleManager {
             地点: ${course.location || '未设置'}
         `;
         
+        this.updateTimeSelects();
+        
         const modKey = `${courseId}_${this.currentWeek}`;
         const existingMod = this.modifications[modKey];
         
@@ -656,6 +837,8 @@ class ScheduleManager {
         
         form.reset();
         document.getElementById('todoId').value = '';
+        
+        this.updateTimeSelects();
         
         if (todoId) {
             const todo = this.todos.find(t => t.id === todoId);
