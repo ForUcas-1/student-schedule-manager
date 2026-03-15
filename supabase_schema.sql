@@ -1,31 +1,36 @@
--- 课程信息表
-CREATE TABLE IF NOT EXISTS courses (
+DROP TABLE IF EXISTS course_modifications CASCADE;
+DROP TABLE IF EXISTS courses CASCADE;
+DROP TABLE IF EXISTS todos CASCADE;
+DROP TABLE IF EXISTS semester_settings CASCADE;
+DROP TABLE IF EXISTS time_slots CASCADE;
+
+CREATE TABLE courses (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     day INTEGER NOT NULL CHECK (day >= 1 AND day <= 7),
-    time INTEGER NOT NULL CHECK (time >= 1 AND time <= 5),
+    time_start INTEGER NOT NULL CHECK (time_start >= 1),
+    time_end INTEGER NOT NULL CHECK (time_end >= 1),
     location VARCHAR(255),
     weeks TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 
--- 课程临时修改表
-CREATE TABLE IF NOT EXISTS course_modifications (
+CREATE TABLE course_modifications (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
     week INTEGER NOT NULL,
     new_day INTEGER CHECK (new_day >= 1 AND new_day <= 7),
-    new_time INTEGER CHECK (new_time >= 1 AND new_time <= 5),
+    new_time_start INTEGER CHECK (new_time_start >= 1),
+    new_time_end INTEGER CHECK (new_time_end >= 1),
     new_location VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
     UNIQUE(course_id, week)
 );
 
--- 待办事项表
-CREATE TABLE IF NOT EXISTS todos (
+CREATE TABLE todos (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
@@ -39,16 +44,14 @@ CREATE TABLE IF NOT EXISTS todos (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 
--- 学期设置表
-CREATE TABLE IF NOT EXISTS semester_settings (
+CREATE TABLE semester_settings (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
     semester_start DATE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 
--- 时间段设置表
-CREATE TABLE IF NOT EXISTS time_slots (
+CREATE TABLE time_slots (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     slot_index INTEGER NOT NULL CHECK (slot_index >= 0 AND slot_index < 12),
@@ -58,24 +61,21 @@ CREATE TABLE IF NOT EXISTS time_slots (
     UNIQUE(user_id, slot_index)
 );
 
--- 创建索引
-CREATE INDEX IF NOT EXISTS idx_courses_user_id ON courses(user_id);
-CREATE INDEX IF NOT EXISTS idx_courses_day_time ON courses(day, time);
-CREATE INDEX IF NOT EXISTS idx_modifications_user_id ON course_modifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_modifications_course_week ON course_modifications(course_id, week);
-CREATE INDEX IF NOT EXISTS idx_todos_user_id ON todos(user_id);
-CREATE INDEX IF NOT EXISTS idx_todos_date ON todos(date);
-CREATE INDEX IF NOT EXISTS idx_semester_user_id ON semester_settings(user_id);
-CREATE INDEX IF NOT EXISTS idx_time_slots_user_id ON time_slots(user_id);
+CREATE INDEX idx_courses_user_id ON courses(user_id);
+CREATE INDEX idx_courses_day_time ON courses(day, time_start, time_end);
+CREATE INDEX idx_modifications_user_id ON course_modifications(user_id);
+CREATE INDEX idx_modifications_course_week ON course_modifications(course_id, week);
+CREATE INDEX idx_todos_user_id ON todos(user_id);
+CREATE INDEX idx_todos_date ON todos(date);
+CREATE INDEX idx_semester_user_id ON semester_settings(user_id);
+CREATE INDEX idx_time_slots_user_id ON time_slots(user_id);
 
--- 启用 RLS (Row Level Security)
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE course_modifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE semester_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE time_slots ENABLE ROW LEVEL SECURITY;
 
--- RLS 策略：用户只能访问自己的数据
 CREATE POLICY "Users can view their own courses" ON courses
     FOR SELECT USING (auth.uid() = user_id);
 
@@ -133,7 +133,6 @@ CREATE POLICY "Users can update their own time slots" ON time_slots
 CREATE POLICY "Users can delete their own time slots" ON time_slots
     FOR DELETE USING (auth.uid() = user_id);
 
--- 更新时间触发器函数
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -142,7 +141,6 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- 为需要更新时间的表添加触发器
 DROP TRIGGER IF EXISTS update_courses_updated_at ON courses;
 CREATE TRIGGER update_courses_updated_at
     BEFORE UPDATE ON courses

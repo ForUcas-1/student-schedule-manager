@@ -222,6 +222,13 @@ header h1 {
     transition: all 0.2s;
     margin: 2px;
     position: relative;
+    overflow: hidden;
+}
+
+.schedule-item.multi-slot {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
 }
 
 .schedule-item:hover {

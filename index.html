@@ -166,13 +166,13 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="courseTime">时间段 *</label>
-                    <select id="courseTime" required>
-                        <option value="1">第1-2节 (08:00-09:35)</option>
-                        <option value="2">第3-4节 (09:55-11:30)</option>
-                        <option value="3">第5-6节 (13:30-15:05)</option>
-                        <option value="4">第7-8节 (15:25-17:00)</option>
-                        <option value="5">第9-10节 (18:30-20:05)</option>
+                    <label for="courseTimeStart">开始节次 *</label>
+                    <select id="courseTimeStart" required>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="courseTimeEnd">结束节次 *</label>
+                    <select id="courseTimeEnd" required>
                     </select>
                 </div>
                 <div class="form-group">
@@ -218,14 +218,15 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="modifyTime">新时间段</label>
-                    <select id="modifyTime">
+                    <label for="modifyTimeStart">新开始节次</label>
+                    <select id="modifyTimeStart">
                         <option value="">不修改</option>
-                        <option value="1">第1-2节 (08:00-09:35)</option>
-                        <option value="2">第3-4节 (09:55-11:30)</option>
-                        <option value="3">第5-6节 (13:30-15:05)</option>
-                        <option value="4">第7-8节 (15:25-17:00)</option>
-                        <option value="5">第9-10节 (18:30-20:05)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="modifyTimeEnd">新结束节次</label>
+                    <select id="modifyTimeEnd">
+                        <option value="">不修改</option>
                     </select>
                 </div>
                 <div class="form-group">

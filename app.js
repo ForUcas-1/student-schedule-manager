@@ -256,14 +256,15 @@ class ScheduleManager {
             .select('*')
             .eq('user_id', this.user.id)
             .order('day', { ascending: true })
-            .order('time', { ascending: true });
+            .order('time_start', { ascending: true });
 
         if (data) {
             this.courses = data.map(c => ({
                 id: c.id,
                 name: c.name,
                 day: c.day,
-                time: c.time,
+                timeStart: c.time_start,
+                timeEnd: c.time_end,
                 location: c.location,
                 weeks: c.weeks
             }));
@@ -305,7 +306,8 @@ class ScheduleManager {
                     courseId: m.course_id,
                     week: m.week,
                     newDay: m.new_day,
-                    newTime: m.new_time,
+                    newTimeStart: m.new_time_start,
+                    newTimeEnd: m.new_time_end,
                     newLocation: m.new_location
                 };
             });
@@ -371,6 +373,17 @@ class ScheduleManager {
         if (!time || time < 1 || time > this.timeSlots.length) return '';
         const slot = this.timeSlots[time - 1];
         return `第${time}节 (${slot.start}-${slot.end})`;
+    }
+
+    getTimeSlotRange(timeStart, timeEnd) {
+        if (!timeStart || !timeEnd) return '';
+        if (timeStart === timeEnd) {
+            return this.getTimeSlot(timeStart);
+        }
+        const startSlot = this.timeSlots[timeStart - 1];
+        const endSlot = this.timeSlots[timeEnd - 1];
+        if (!startSlot || !endSlot) return '';
+        return `第${timeStart}-${timeEnd}节 (${startSlot.start}-${endSlot.end})`;
     }
 
     bindEvents() {
@@ -499,23 +512,44 @@ class ScheduleManager {
             const column = document.querySelector(`.day-column[data-day="${day}"]`);
             const slots = column.querySelectorAll('.slot');
             
+            const renderedItems = new Set();
+            
             slots.forEach((slot, timeIndex) => {
                 const time = timeIndex + 1;
                 const items = this.getItemsForSlot(day, time, weekDates[day - 1]);
                 
                 items.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = `schedule-item ${item.type}`;
-                    if (item.hasConflict) div.classList.add('conflict');
+                    const itemKey = `${item.type}_${item.id}_${item.slotCount || 1}`;
+                    if (renderedItems.has(itemKey)) return;
                     
-                    div.innerHTML = `
-                        <div class="item-name">${item.name}</div>
-                        ${item.location ? `<div class="item-location">${item.location}</div>` : ''}
-                        ${item.badge ? `<span class="item-badge">${item.badge}</span>` : ''}
-                    `;
-                    
-                    div.addEventListener('click', () => this.showItemDetail(item));
-                    slot.appendChild(div);
+                    if (item.isFirstSlot || !item.slotCount) {
+                        renderedItems.add(itemKey);
+                        
+                        const div = document.createElement('div');
+                        div.className = `schedule-item ${item.type}`;
+                        if (item.hasConflict) div.classList.add('conflict');
+                        if (item.slotCount && item.slotCount > 1) div.classList.add('multi-slot');
+                        
+                        if (item.slotCount && item.slotCount > 1) {
+                            const slotHeight = 80;
+                            const gap = 4;
+                            const totalHeight = (slotHeight * item.slotCount) + (gap * (item.slotCount - 1));
+                            div.style.height = `${totalHeight - 4}px`;
+                            div.style.position = 'absolute';
+                            div.style.left = '4px';
+                            div.style.right = '4px';
+                            div.style.zIndex = '10';
+                        }
+                        
+                        div.innerHTML = `
+                            <div class="item-name">${item.name}</div>
+                            ${item.location ? `<div class="item-location">${item.location}</div>` : ''}
+                            ${item.badge ? `<span class="item-badge">${item.badge}</span>` : ''}
+                        `;
+                        
+                        div.addEventListener('click', () => this.showItemDetail(item));
+                        slot.appendChild(div);
+                    }
                 });
             });
         }
@@ -526,7 +560,7 @@ class ScheduleManager {
         const dateStr = this.formatDate(date);
         
         this.courses.forEach(course => {
-            if (course.day === day && course.time === time) {
+            if (course.day === day && time >= course.timeStart && time <= course.timeEnd) {
                 const weeks = this.parseWeeks(course.weeks);
                 if (weeks.includes(this.currentWeek)) {
                     const modKey = `${course.id}_${this.currentWeek}`;
@@ -538,7 +572,9 @@ class ScheduleManager {
                             id: course.id,
                             name: course.name,
                             location: course.location,
-                            originalCourse: course
+                            originalCourse: course,
+                            isFirstSlot: time === course.timeStart,
+                            slotCount: course.timeEnd - course.timeStart + 1
                         });
                     }
                 }
@@ -547,7 +583,8 @@ class ScheduleManager {
         
         Object.keys(this.modifications).forEach(key => {
             const mod = this.modifications[key];
-            if (mod.week === this.currentWeek && mod.newDay === day && mod.newTime === time) {
+            if (mod.week === this.currentWeek && mod.newDay === day && 
+                time >= mod.newTimeStart && time <= mod.newTimeEnd) {
                 const course = this.courses.find(c => c.id === mod.courseId);
                 if (course) {
                     const weeks = this.parseWeeks(course.weeks);
@@ -559,7 +596,9 @@ class ScheduleManager {
                             location: mod.newLocation || course.location,
                             badge: '临时修改',
                             originalCourse: course,
-                            modification: mod
+                            modification: mod,
+                            isFirstSlot: time === mod.newTimeStart,
+                            slotCount: mod.newTimeEnd - mod.newTimeStart + 1
                         });
                     }
                 }
@@ -568,13 +607,16 @@ class ScheduleManager {
         
         this.todos.forEach(todo => {
             if (todo.date === dateStr) {
-                if (this.todoOverlapsSlot(todo, time)) {
+                const overlapInfo = this.todoOverlapsSlotWithInfo(todo, time);
+                if (overlapInfo.overlaps) {
                     items.push({
                         type: 'todo-item',
                         id: todo.id,
                         name: todo.name,
                         location: todo.location,
-                        todo: todo
+                        todo: todo,
+                        isFirstSlot: overlapInfo.isFirstSlot,
+                        slotCount: overlapInfo.slotCount
                     });
                 }
             }
@@ -603,6 +645,45 @@ class ScheduleManager {
         return todoStart < slotEnd && todoEnd > slotStart;
     }
 
+    todoOverlapsSlotWithInfo(todo, slotIndex) {
+        if (!todo.startTime || !todo.endTime) {
+            return { overlaps: true, isFirstSlot: true, slotCount: 1 };
+        }
+        
+        const slot = this.timeSlots[slotIndex - 1];
+        if (!slot) return { overlaps: false, isFirstSlot: false, slotCount: 0 };
+        
+        const todoStart = this.timeToMinutes(todo.startTime);
+        const todoEnd = this.timeToMinutes(todo.endTime);
+        const slotStart = this.timeToMinutes(slot.start);
+        const slotEnd = this.timeToMinutes(slot.end);
+        
+        const overlaps = todoStart < slotEnd && todoEnd > slotStart;
+        
+        if (!overlaps) {
+            return { overlaps: false, isFirstSlot: false, slotCount: 0 };
+        }
+        
+        let firstSlot = -1;
+        let lastSlot = -1;
+        
+        for (let i = 0; i < this.timeSlots.length; i++) {
+            const s = this.timeSlots[i];
+            const sStart = this.timeToMinutes(s.start);
+            const sEnd = this.timeToMinutes(s.end);
+            
+            if (todoStart < sEnd && todoEnd > sStart) {
+                if (firstSlot === -1) firstSlot = i + 1;
+                lastSlot = i + 1;
+            }
+        }
+        
+        const isFirstSlot = (slotIndex === firstSlot);
+        const slotCount = lastSlot - firstSlot + 1;
+        
+        return { overlaps: true, isFirstSlot, slotCount };
+    }
+
     timeToMinutes(timeStr) {
         if (!timeStr) return 0;
         const [hours, mins] = timeStr.split(':').map(Number);
@@ -626,9 +707,9 @@ class ScheduleManager {
                 <div class="course-info">
                     <div class="course-name">${course.name}</div>
                     <div class="course-details">
-                        <span>? ${this.getDayName(course.day)}</span>
-                        <span>? ${this.getTimeSlot(course.time)}</span>
-                        <span>? ${course.location || '未设置'}</span>
+                        <span>${this.getDayName(course.day)}</span>
+                        <span>${this.getTimeSlotRange(course.timeStart, course.timeEnd)}</span>
+                        <span>${course.location || '未设置'}</span>
                     </div>
                 </div>
                 <div class="course-actions">
@@ -659,14 +740,14 @@ class ScheduleManager {
                 <div class="todo-info">
                     <div class="todo-name">
                         ${todo.name}
-                        ${todo.alarm ? '<span class="alarm-badge">? 已设闹钟</span>' : ''}
+                        ${todo.alarm ? '<span class="alarm-badge">已设闹钟</span>' : ''}
                     </div>
                     <div class="todo-details">
-                        <span>? ${todo.date}</span>
-                        ${todo.startTime && todo.endTime ? `<span>? ${todo.startTime}-${todo.endTime}</span>` : ''}
-                        ${todo.location ? `<span>? ${todo.location}</span>` : ''}
+                        <span>${todo.date}</span>
+                        ${todo.startTime && todo.endTime ? `<span>${todo.startTime}-${todo.endTime}</span>` : ''}
+                        ${todo.location ? `<span>${todo.location}</span>` : ''}
                     </div>
-                    ${todo.note ? `<div style="margin-top: 8px; color: #64748b; font-size: 14px;">? ${todo.note}</div>` : ''}
+                    ${todo.note ? `<div style="margin-top: 8px; color: #64748b; font-size: 14px;">${todo.note}</div>` : ''}
                 </div>
                 <div class="todo-actions">
                     <button class="btn-secondary" onclick="app.openTodoModal('${todo.id}')">编辑</button>
@@ -779,16 +860,16 @@ class ScheduleManager {
     }
 
     updateTimeSelects() {
-        const timeSelects = ['courseTime', 'modifyTime', 'todoTime'];
+        const timeSelects = ['courseTimeStart', 'courseTimeEnd', 'modifyTimeStart', 'modifyTimeEnd'];
         
         timeSelects.forEach(selectId => {
             const select = document.getElementById(selectId);
             if (!select) return;
             
             const currentValue = select.value;
-            const isTodoSelect = selectId === 'todoTime';
+            const isModifySelect = selectId.includes('modify');
             
-            select.innerHTML = isTodoSelect ? '<option value="">全天</option>' : '';
+            select.innerHTML = isModifySelect ? '<option value="">不修改</option>' : '';
             
             this.timeSlots.forEach((slot, index) => {
                 const option = document.createElement('option');
@@ -820,12 +901,14 @@ class ScheduleManager {
                 document.getElementById('courseId').value = course.id;
                 document.getElementById('courseName').value = course.name;
                 document.getElementById('courseDay').value = course.day;
-                document.getElementById('courseTime').value = course.time;
+                document.getElementById('courseTimeStart').value = course.timeStart;
+                document.getElementById('courseTimeEnd').value = course.timeEnd;
                 document.getElementById('courseLocation').value = course.location || '';
                 document.getElementById('courseWeeks').value = course.weeks || '';
             }
         } else {
             title.textContent = '添加课程';
+            document.getElementById('courseTimeEnd').value = '1';
         }
         
         modal.classList.add('active');
@@ -844,7 +927,7 @@ class ScheduleManager {
         
         document.getElementById('originalCourseInfo').innerHTML = `
             <strong>${course.name}</strong><br>
-            时间: ${this.getDayName(course.day)} ${this.getTimeSlot(course.time)}<br>
+            时间: ${this.getDayName(course.day)} ${this.getTimeSlotRange(course.timeStart, course.timeEnd)}<br>
             地点: ${course.location || '未设置'}
         `;
         
@@ -855,7 +938,8 @@ class ScheduleManager {
         
         if (existingMod) {
             document.getElementById('modifyDay').value = existingMod.newDay || '';
-            document.getElementById('modifyTime').value = existingMod.newTime || '';
+            document.getElementById('modifyTimeStart').value = existingMod.newTimeStart || '';
+            document.getElementById('modifyTimeEnd').value = existingMod.newTimeEnd || '';
             document.getElementById('modifyLocation').value = existingMod.newLocation || '';
         }
         
@@ -902,31 +986,38 @@ class ScheduleManager {
         const id = document.getElementById('courseId').value;
         const name = document.getElementById('courseName').value.trim();
         const day = parseInt(document.getElementById('courseDay').value);
-        const time = parseInt(document.getElementById('courseTime').value);
+        const timeStart = parseInt(document.getElementById('courseTimeStart').value);
+        const timeEnd = parseInt(document.getElementById('courseTimeEnd').value);
         const location = document.getElementById('courseLocation').value.trim();
         const weeks = document.getElementById('courseWeeks').value.trim();
+        
+        if (timeStart > timeEnd) {
+            alert('开始节次不能大于结束节次');
+            return;
+        }
         
         const courseData = { 
             user_id: this.user.id,
             name, 
             day, 
-            time, 
+            time_start: timeStart,
+            time_end: timeEnd,
             location, 
-            weeks 
+            weeks
         };
 
         let error;
         if (id) {
             const result = await supabaseClient
                 .from('courses')
-                .update({ name, day, time, location, weeks })
+                .update({ name, day, time_start: timeStart, time_end: timeEnd, location, weeks })
                 .eq('id', id);
             error = result.error;
             
             if (!error) {
                 const index = this.courses.findIndex(c => c.id === id);
                 if (index >= 0) {
-                    this.courses[index] = { id, name, day, time, location, weeks };
+                    this.courses[index] = { id, name, day, timeStart, timeEnd, location, weeks };
                 }
             }
         } else {
@@ -940,7 +1031,7 @@ class ScheduleManager {
             if (!error && result.data) {
                 this.courses.push({
                     id: result.data.id,
-                    name, day, time, location, weeks
+                    name, day, timeStart, timeEnd, location, weeks
                 });
             }
         }
@@ -959,7 +1050,8 @@ class ScheduleManager {
         const courseId = document.getElementById('modifyCourseId').value;
         const week = parseInt(document.getElementById('modifyWeek').value);
         const newDay = document.getElementById('modifyDay').value;
-        const newTime = document.getElementById('modifyTime').value;
+        const newTimeStart = document.getElementById('modifyTimeStart').value;
+        const newTimeEnd = document.getElementById('modifyTimeEnd').value;
         const newLocation = document.getElementById('modifyLocation').value.trim();
         
         const course = this.courses.find(c => c.id === courseId);
@@ -967,7 +1059,7 @@ class ScheduleManager {
         
         const modKey = `${courseId}_${week}`;
         
-        if (!newDay && !newTime && !newLocation) {
+        if (!newDay && !newTimeStart && !newTimeEnd && !newLocation) {
             await supabaseClient
                 .from('course_modifications')
                 .delete()
@@ -980,7 +1072,8 @@ class ScheduleManager {
                 course_id: courseId,
                 week,
                 new_day: newDay ? parseInt(newDay) : course.day,
-                new_time: newTime ? parseInt(newTime) : course.time,
+                new_time_start: newTimeStart ? parseInt(newTimeStart) : course.timeStart,
+                new_time_end: newTimeEnd ? parseInt(newTimeEnd) : course.timeEnd,
                 new_location: newLocation || null
             };
 
@@ -997,7 +1090,8 @@ class ScheduleManager {
                 courseId,
                 week,
                 newDay: modData.new_day,
-                newTime: modData.new_time,
+                newTimeStart: modData.new_time_start,
+                newTimeEnd: modData.new_time_end,
                 newLocation: modData.new_location
             };
         }
