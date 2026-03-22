@@ -15,6 +15,6 @@ const configContent = `window.APP_CONFIG = {
 
 fs.writeFileSync(path.join(__dirname, 'config.js'), configContent);
 console.log('config.js generated successfully');
-console.log('SUPABASE_URL:', config.SUPABASE_URL ? '“—≈‰÷√' : 'Œ¥≈‰÷√');
-console.log('SUPABASE_ANON_KEY:', config.SUPABASE_ANON_KEY ? '“—≈‰÷√' : 'Œ¥≈‰÷√');
-console.log('DEEPSEEK_API_KEY:', config.DEEPSEEK_API_KEY ? '“—≈‰÷√' : 'Œ¥≈‰÷√');
+console.log('SUPABASE_URL:', config.SUPABASE_URL ? 'configured' : 'not configured');
+console.log('SUPABASE_ANON_KEY:', config.SUPABASE_ANON_KEY ? 'configured' : 'not configured');
+console.log('DEEPSEEK_API_KEY:', config.DEEPSEEK_API_KEY ? 'configured' : 'not configured');

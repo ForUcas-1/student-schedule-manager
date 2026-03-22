@@ -1,10 +1,7 @@
 {
   "name": "student-schedule-manager",
   "version": "1.0.0",
-  "description": "学生日程管理系统",
   "scripts": {
     "build": "node build.js"
-  },
-  "author": "",
-  "license": "MIT"
+  }
 }
