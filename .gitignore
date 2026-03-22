@@ -19,6 +19,7 @@ npm-debug.log*
 .env
 .env.local
 .env.*.local
+config.js
 
 # Build outputs
 dist/

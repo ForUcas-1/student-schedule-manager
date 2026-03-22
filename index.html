@@ -6,6 +6,7 @@
     <title>学生日程管理系统</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
 </head>
 <body>
     <div class="auth-container" id="authContainer">
@@ -51,6 +52,7 @@
             <button class="tab-btn active" data-tab="schedule">本周日程</button>
             <button class="tab-btn" data-tab="courses">固定课程</button>
             <button class="tab-btn" data-tab="todos">待办事项</button>
+            <button class="tab-btn" data-tab="ai-chat">AI智能规划</button>
             <button class="tab-btn" data-tab="settings">时间设置</button>
         </nav>
 
@@ -135,6 +137,68 @@
                     </div>
                     <div class="settings-info">
                         <p>提示：修改时间设置后，现有的课程和待办事项将按新的时间段显示。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="ai-chat" class="tab-content">
+                <div class="section-header">
+                    <h2>AI对话</h2>
+                    <button class="btn-secondary" id="newChatBtn">新对话</button>
+                </div>
+                <div class="ai-chat-container">
+                    <div class="chat-mode-selector">
+                        <h3>选择对话模式</h3>
+                        <div class="mode-buttons">
+                            <button class="mode-btn" data-mode="single_todo">单次待办</button>
+                            <button class="mode-btn" data-mode="course_modification">课表设置</button>
+                            <button class="mode-btn" data-mode="long_term_plan">长期规划</button>
+                        </div>
+                    </div>
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="chatInput" placeholder="请输入您的需求...">
+                        <button class="btn-primary" id="sendMessageBtn">发送</button>
+                    </div>
+                </div>
+            </section>
+            
+
+            
+            <section id="settings" class="tab-content">
+                <div class="section-header">
+                    <h2>时间设置</h2>
+                </div>
+                <div class="settings-container">
+                    <div class="settings-section">
+                        <h3>学期设置</h3>
+                        <div class="form-group">
+                            <label for="semesterStart">学期开始日期 *</label>
+                            <input type="date" id="semesterStart" required>
+                            <div class="form-hint">提示：学期开始日期应为第一周的周一</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="totalWeeks">学期总周数 *</label>
+                            <input type="number" id="totalWeeks" min="1" max="52" value="20" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="semesterEnd">学期结束日期</label>
+                            <input type="date" id="semesterEnd" readonly>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-primary" id="saveSemesterSettings">保存学期设置</button>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>时间节次设置</h3>
+                        <div id="timeSlotsContainer">
+                            <!-- 时间节次设置将在这里动态生成 -->
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" id="addTimeSlotBtn">添加节次</button>
+                            <button type="button" class="btn-primary" id="saveTimeSlots">保存时间设置</button>
+                        </div>
                     </div>
                 </div>
             </section>
