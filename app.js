@@ -406,13 +406,8 @@ class ScheduleManager {
     }
 
     getDateForDay(dayOfWeek, weekNum = null) {
-        // 如果指定了周次，使用学期设置的日期；否则使用当前周的日期
-        let weekDates;
-        if (weekNum !== null && this.semesterStart && weekNum >= 1 && weekNum <= this.totalWeeks) {
-            weekDates = this.getWeekDates(weekNum);
-        } else {
-            weekDates = this.getCurrentWeekDates();
-        }
+        // 始终使用当前显示的日期，不受学期设置影响
+        const weekDates = this.getCurrentWeekDates();
         
         const dayIndex = dayOfWeek - 1;
         if (dayIndex >= 0 && dayIndex < weekDates.length) {
@@ -432,10 +427,16 @@ class ScheduleManager {
         const targetDate = new Date(date);
         targetDate.setHours(0, 0, 0, 0);
         
-        // 计算天数差
-        const diffDays = Math.floor((targetDate - start) / (24 * 60 * 60 * 1000));
+        // 计算天数差（确保为正数）
+        const diffTime = targetDate - start;
+        const diffDays = Math.floor(diffTime / (24 * 60 * 60 * 1000));
         
-        // 计算周数
+        // 如果日期在学期开始之前，返回null
+        if (diffDays < 0) {
+            return null;
+        }
+        
+        // 计算周数（从1开始）
         const week = Math.floor(diffDays / 7) + 1;
         
         // 检查是否在学期范围内
@@ -472,6 +473,85 @@ class ScheduleManager {
     getDayName(day) {
         const days = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
         return days[day];
+    }
+
+    // 高级感配色方案 - 固定课程（深色调）
+    getFixedCourseColors() {
+        return [
+            // 深蓝系 - 专业稳重
+            'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)',
+            'linear-gradient(135deg, #2980b9 0%, #3498db 100%)',
+            'linear-gradient(135deg, #16a085 0%, #1abc9c 100%)',
+            
+            // 深紫系 - 学术优雅
+            'linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%)',
+            'linear-gradient(135deg, #2c3e50 0%, #4a235a 100%)',
+            
+            // 深绿系 - 自然和谐
+            'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)',
+            'linear-gradient(135deg, #16a085 0%, #27ae60 100%)',
+            
+            // 深红系 - 重点突出
+            'linear-gradient(135deg, #c0392b 0%, #e74c3c 100%)',
+            'linear-gradient(135deg, #d35400 0%, #e67e22 100%)',
+            
+            // 深灰系 - 中性专业
+            'linear-gradient(135deg, #7f8c8d 0%, #95a5a6 100%)',
+            'linear-gradient(135deg, #34495e 0%, #5d6d7e 100%)'
+        ];
+    }
+
+    // 高级感配色方案 - 待办事项（浅色调）
+    getTodoItemColors() {
+        return [
+            // 浅蓝系 - 清新明快
+            'linear-gradient(135deg, #74b9ff 0%, #0984e3 100%)',
+            'linear-gradient(135deg, #81ecec 0%, #00cec9 100%)',
+            
+            // 浅绿系 - 轻松自然
+            'linear-gradient(135deg, #55efc4 0%, #00b894 100%)',
+            'linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%)',
+            
+            // 浅粉系 - 柔和温馨
+            'linear-gradient(135deg, #fd79a8 0%, #e84393 100%)',
+            'linear-gradient(135deg, #fab1a0 0%, #e17055 100%)',
+            
+            // 浅黄系 - 温暖明亮
+            'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)',
+            'linear-gradient(135deg, #f6e58d 0%, #ffbe76 100%)',
+            
+            // 浅紫系 - 优雅浪漫
+            'linear-gradient(135deg, #d6a2e8 0%, #82589f 100%)',
+            'linear-gradient(135deg, #c8d6e5 0%, #8395a7 100%)'
+        ];
+    }
+
+    // 基于名称和类型获取高级配色
+    getAdvancedItemGradient(name, type) {
+        // 使用简单的哈希函数为名称生成一致的索引
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+            hash = ((hash << 5) - hash) + name.charCodeAt(i);
+            hash = hash & hash;
+        }
+        
+        let colorPalette;
+        if (type === 'fixed') {
+            colorPalette = this.getFixedCourseColors();
+        } else if (type === 'todo-item') {
+            colorPalette = this.getTodoItemColors();
+        } else {
+            // 其他类型使用中等色调
+            colorPalette = [
+                'linear-gradient(135deg, #636e72 0%, #2d3436 100%)',
+                'linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%)',
+                'linear-gradient(135deg, #fd79a8 0%, #e84393 100%)'
+            ];
+        }
+        
+        // 确保索引在有效范围内
+        const index = Math.abs(hash) % colorPalette.length;
+        return colorPalette[index];
     }
 
     getTimeSlot(time) {
@@ -634,14 +714,20 @@ class ScheduleManager {
 
     updateWeekDisplay() {
         const weekElement = document.getElementById('currentWeek');
-        if (this.currentWeek === null) {
-            // 不在学期范围内，不显示周次
-            weekElement.textContent = '当前不在学期范围内';
-            weekElement.style.color = '#6b7280';
+        
+        // 计算当前显示的日期在学期内的对应周次
+        const semesterWeek = this.calculateWeekForDate(this.currentMonday);
+        
+        if (semesterWeek === null) {
+            // 不在学期范围内，显示日期和提示
+            const dateStr = this.currentMonday ? this.formatDate(this.currentMonday) : '未知日期';
+            weekElement.textContent = `(不在学期范围内)`;
+            weekElement.style.color = '#ef4444';
             weekElement.style.fontStyle = 'italic';
         } else {
-            // 在学期范围内，显示周次
-            weekElement.textContent = `第 ${this.currentWeek} 周`;
+            // 在学期范围内，显示周次和日期
+            const dateStr = this.currentMonday ? this.formatDate(this.currentMonday) : '未知日期';
+            weekElement.textContent = `第 ${semesterWeek} 周 `;
             weekElement.style.color = '';
             weekElement.style.fontStyle = '';
         }
@@ -685,7 +771,8 @@ class ScheduleManager {
     }
 
     renderWeekSchedule() {
-        const weekDates = this.getWeekDates(this.currentWeek);
+        // 使用当前显示的日期，不受学期设置影响
+        const weekDates = this.getCurrentWeekDates();
         
         for (let day = 1; day <= 7; day++) {
             const column = document.querySelector(`.day-column[data-day="${day}"]`);
@@ -708,6 +795,12 @@ class ScheduleManager {
                         div.className = `schedule-item ${item.type}`;
                         if (item.hasConflict) div.classList.add('conflict');
                         if (item.slotCount && item.slotCount > 1) div.classList.add('multi-slot');
+                        
+                        // 为固定课程和待办事项应用高级配色方案
+                        if (item.type === 'fixed' || item.type === 'todo-item') {
+                            div.style.background = this.getAdvancedItemGradient(item.name, item.type);
+                            div.style.borderLeft = '4px solid rgba(0, 0, 0, 0.2)';
+                        }
                         
                         if (item.slotCount && item.slotCount > 1) {
                             const slotHeight = 120;

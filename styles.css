@@ -214,10 +214,9 @@ header h1 {
 }
 
 .schedule-item {
-    background: #5a67d8;
     color: white;
     padding: 8px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 24px;
     cursor: pointer;
     transition: all 0.2s;
@@ -236,6 +235,7 @@ header h1 {
     -ms-user-select: none;
     touch-action: manipulation;
     min-height: 0;
+    border: 2px solid transparent;
 }
 
 .schedule-item.multi-slot {
@@ -250,19 +250,54 @@ header h1 {
 
 .schedule-item:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(90, 103, 216, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.schedule-item.modified {
-    background: #f59e0b;
+/* 固定课程样式 - 通过JavaScript动态生成高级配色 */
+.schedule-item.fixed {
+    border-left: 4px solid rgba(255, 255, 255, 0.3);
 }
 
+.schedule-item.fixed:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* 待办事项样式 - 通过JavaScript动态生成高级配色 */
 .schedule-item.todo-item {
-    background: #10b981;
+    border-left: 4px solid rgba(255, 255, 255, 0.3);
 }
 
+.schedule-item.todo-item:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* 临时修改样式 - 橙色系 */
+.schedule-item.modified {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    border-left: 4px solid #92400e;
+}
+
+.schedule-item.modified:hover {
+    box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3);
+}
+
+/* AI预规划样式 - 紫色系 */
+.schedule-item.ai-suggestion {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    border-left: 4px solid #5b21b6;
+    border-style: dashed;
+    opacity: 0.9;
+}
+
+.schedule-item.ai-suggestion:hover {
+    box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+}
+
+/* 冲突样式 - 红色系 */
 .schedule-item.conflict {
-    background: #ef4444;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    border-left: 4px solid #991b1b;
+    animation: pulse 2s infinite;
     pointer-events: auto;
 }
 
@@ -275,40 +310,117 @@ header h1 {
     }
 }
 
+@keyframes subtleGlow {
+    0%, 100% {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    50% {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+}
+
+.schedule-item {
+    animation: subtleGlow 3s ease-in-out infinite;
+}
+
+.schedule-item:hover {
+    animation: none;
+}
+
+/* 多时间槽项目的特殊样式 */
+.schedule-item.multi-slot {
+    border-radius: 8px 8px 0 0;
+}
+
+.schedule-item.multi-slot:last-child {
+    border-radius: 0 0 8px 8px;
+}
+
+/* 确保不同类型有足够的视觉区分 */
+.schedule-item.fixed {
+    border-left-width: 6px;
+}
+
+.schedule-item.todo-item {
+    border-left-width: 6px;
+}
+
+.schedule-item.modified {
+    border-left-width: 6px;
+}
+
+.schedule-item.ai-suggestion {
+    border-left-width: 6px;
+    border-left-style: double;
+}
+
+.schedule-item.conflict {
+    border-left-width: 6px;
+}
+
 .schedule-item .item-name {
-    font-weight: 600;
-    margin-bottom: 4px;
+    font-weight: 700;
+    margin-bottom: 6px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 20px;
+    font-size: 22px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .schedule-item .item-location {
-    font-size: 22px;
-    opacity: 0.9;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.schedule-item .item-time {
     font-size: 20px;
-    color: #fef3c7;
+    opacity: 0.95;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.schedule-item .item-time {
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 6px;
+    font-weight: 500;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
 }
 
 .schedule-item .item-badge {
     position: absolute;
     top: 8px;
     right: 8px;
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.25);
     padding: 4px 12px;
-    border-radius: 8px;
-    font-size: 20px;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(4px);
+}
+
+/* 不同类型日程的特定样式 */
+.schedule-item.fixed .item-badge {
+    background: rgba(30, 64, 175, 0.3);
+}
+
+.schedule-item.todo-item .item-badge {
+    background: rgba(5, 95, 70, 0.3);
+}
+
+.schedule-item.modified .item-badge {
+    background: rgba(146, 64, 14, 0.3);
+}
+
+.schedule-item.ai-suggestion .item-badge {
+    background: rgba(91, 33, 182, 0.3);
+}
+
+.schedule-item.conflict .item-badge {
+    background: rgba(153, 27, 27, 0.3);
 }
 
 .section-header {
